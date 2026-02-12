@@ -1,0 +1,2 @@
+# Security Scanner Dependencies
+# No external dependencies required for basic scanning
