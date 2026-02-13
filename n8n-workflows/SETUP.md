@@ -4,7 +4,8 @@
 
 | 檔案 | 名稱 | 功能 |
 |------|------|------|
-| `social-posting-v2.json` | Social Media Auto-Poster | 自動發布宣傳貼文 |
+| `social-posting-full.json` | Social Media Auto-Poster (Full) | Twitter + Facebook + Threads |
+| `social-posting-v2.json` | Social Media Auto-Poster | Twitter + Facebook |
 | `payment-notification-v2.json` | Payment Notification | Wise 收款通知 |
 
 ---
@@ -52,6 +53,24 @@
    - Bot Token: `8344340833:AAF0kCtZ_awsPrs6M2lzclCDmeer6xjXOdw`
 4. 點擊 **「Save」**
 
+#### Threads 設定
+
+1. 點擊 Threads 節點
+2. 點擊 **「Create New Credential」**
+3. 選擇 **「Threads API OAuth2」**
+4. 填入：
+   - Client ID: [你的 Threads App Client ID]
+   - Client Secret: [你的 Threads App Secret]
+   - Scopes: `threads_basic threads_content_publish`
+5. 點擊 **「Save」**
+6. **重要**：Threads API 需要先申請 developer access
+
+**申請 Threads API：**
+1. 去 https://developers.threads.net
+2. 建立 App
+3. 申請 Content Publishing 權限
+4. 通過後取得 API Keys
+
 #### Google Sheets 設定（可選）
 
 1. 點擊 Google Sheets 節點
@@ -90,15 +109,14 @@ WISE_WEBHOOK_URL = https://your-n8n-instance.com/webhook/wise-payment
 │ Content Generator│ (隨機選擇宣傳內容)
 └────────┬────────┘
          │
-         ▼
-    ┌────┴────┐
-    │         │
-    ▼         ▼
-┌───────┐  ┌───────┐
-│Twitter│  │Facebook│
-└───┬───┘  └───┬───┘
-    │          │
-    └────┬─────┘
+    ┌────┼────┐
+    │         │         │
+    ▼         ▼         ▼
+┌───────┐ ┌───────┐ ┌───────┐
+│Twitter│ │Facebook│ │ Threads│
+└───┬───┘ └───┬───┘ └───┬───┘
+    │         │         │
+    └────┬────┴────┬────┘
          │
          ▼
 ┌─────────────────────┐
