@@ -1,0 +1,121 @@
+{
+  "meta": {
+    "instanceId": "secscan_002",
+    "created": "2026-02-13T06:51:00Z",
+    "version": "1.0"
+  },
+  "name": "Security Scanner - Payment Notification",
+  "description": "Wise 收款通知與客戶管理自動化",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.WISE_WEBHOOK_URL }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={}",
+        "options": {}
+      },
+      "id": "node_webhook",
+      "name": "Wise Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "1408472778",
+        "text": "={{ '💰 【收款通知】\\n\\n💵 金額: ' + $json.amount + ' ' + $json.currency + '\\n📝 項目: ' + ($json.reference || 'Security Scanner 訂單') + '\\n👤 客戶: ' + ($json.senderName || '未知') + '\\n⏰ 時間: ' + $json.created_at + '\\n\\n🔗 https://wise.com/home/review' }}",
+        "additionalFields": {}
+      },
+      "id": "node_telegram_alert",
+      "name": "Telegram Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.6,
+      "position": [350, 150],
+      "credentials": {
+        "telegramApi": {
+          "id": "CREDENTIAL_ID_TELEGRAM",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "SPREADSHEET_ID",
+        "table": "A:E",
+        "columns": "=A:B:C:D:E",
+        "options": {}
+      },
+      "id": "node_google_sheets",
+      "name": "Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [350, 300],
+      "credentials": {
+        "googleSheetsOAuth2": {
+          "id": "CREDENTIAL_ID_GOOGLE",
+          "name": "Google Sheets OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toEmail": "={{ $json.customerEmail || 'andycywu@gmail.com' }}",
+        "subject": "={{ '感謝購買 Security Scanner！訂單 #' + $json.orderId }}",
+        "emailFormat": "html",
+        "text": "={{ '<h2>🎉 感謝您的購買！</h2>\\n\\n<p>親愛的 <strong>' + ($json.senderName || '客戶') + '</strong>，</p>\\n\\n<p>我們已收到您的付款：<strong>' + $json.amount + ' ' + $json.currency + '</strong></p>\\n\\n<p>訂單詳情：<strong>#' + ($json.orderId || 'SC-' + Date.now()) + '</strong></p>\\n\\n<h3>📦 產品資訊</h3>\\n<ul>\\n<li>Security Scanner 個人版</li>\\n<li>GitHub: https://github.com/andycywu/security-scanner</li>\\n</ul>\\n\\n<h3>💡 開始使用</h3>\\n<ol>\\n<li>Clone repository</li>\\n<li>執行: python3 scanner.py /path/to/your/skill</li>\\n<li>查看報告</li>\\n</ol>\\n\\n<p>如有問題，請聯繫：@singularity_capital_bot</p>\\n\\n<p>---<br>奇點資本 Singularity Capital LLC</p>' }}",
+        "additionalFields": {}
+      },
+      "id": "node_email",
+      "name": "Customer Email",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1.4,
+      "position": [350, 450],
+      "credentials": {
+        "smtp": {
+          "id": "CREDENTIAL_ID_SMTP",
+          "name": "SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// 處理收款資料\nconst amount = $json.amount || 0;\nconst currency = $json.currency || 'USD';\nconst orderId = 'SC-' + Date.now().toString(36).toUpperCase();\n\nlet product = 'Security Scanner 個人版 $49';\nif (amount >= 499) {\n  product = 'Security Scanner 企業版 $499';\n}\n\nreturn [{\n  json: {\n    amount,\n    currency,\n    orderId,\n    product,\n    created_at: new Date().toISOString(),\n    customerEmail: $json.senderEmail,\n    senderName: $json.senderName,\n    status: 'completed'\n  }\n}];\n"
+      },
+      "id": "node_order_processor",
+      "name": "Order Processor",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [100, 400]
+    }
+  ],
+  "connections": {
+    "Wise Webhook": {
+      "main": [
+        [{"node": "Telegram Alert", "type": "main", "index": 0}],
+        [{"node": "Google Sheets", "type": "main", "index": 0}],
+        [{"node": "Order Processor", "type": "main", "index": 0}]
+      ]
+    },
+    "Order Processor": {
+      "main": [
+        [{"node": "Customer Email", "type": "main", "index": 0}]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

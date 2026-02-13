@@ -1,0 +1,124 @@
+{
+  "meta": {
+    "instanceId": "secscan_001",
+    "created": "2026-02-13T06:50:00Z",
+    "version": "1.0"
+  },
+  "name": "Security Scanner - Social Media Auto-Poster",
+  "description": "自動發布 Security Scanner 宣傳貼文到 Twitter 和 Facebook",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": {
+            "hours": 24,
+            "minutes": 0
+          }
+        },
+        "triggerAt": {
+          "hour": 9,
+          "minute": 0
+        }
+      },
+      "id": "node_schedule",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.content }}",
+        "additionalFields": {}
+      },
+      "id": "node_twitter",
+      "name": "Twitter/X",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 1.4,
+      "position": [300, 150],
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "CREDENTIAL_ID_TWITTER",
+          "name": "Twitter OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.content }}",
+        "pageId": {
+          "__rl": true,
+          "value": "PAGE_ID",
+          "mode": "list"
+        }
+      },
+      "id": "node_facebook",
+      "name": "Facebook",
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1.2,
+      "position": [300, 300],
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "CREDENTIAL_ID_FACEBOOK",
+          "name": "Facebook Graph API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "1408472778",
+        "text": "={{ '✅ 自動化推文已發布！\n\n📅 ' + $now.toFormat('yyyy-MM-dd HH:mm') + '\n🔗 https://github.com/andycywu/security-scanner' }}",
+        "additionalFields": {}
+      },
+      "id": "node_telegram",
+      "name": "Telegram Notification",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.6,
+      "position": [500, 200],
+      "credentials": {
+        "telegramApi": {
+          "id": "CREDENTIAL_ID_TELEGRAM",
+          "name": "Telegram Bot API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// 生成隨機宣傳內容\nconst posts = [\n  {\n    content: \"🔒 AI Skill Security Scanner v1.0 上線！\\n\\n✅ 掃描 API Key 洩漏\\n✅ 偵測惡意程式碼\\n✅ 權限風險評估\\n\\n💰 個人版 $49 | 企業版 $499/年\\n📞 @singularity_capital_bot\\n\\n#AI #資安 #程式開發\"\n  },\n  {\n    content: \"💡 你寫的 AI Skill 安全嗎？\\n\\nSecurity Scanner 幫你自動掃描！\\n🔍 找出隱藏的安全漏洞\\n🛡️ 保護你的 API Keys\\n\\n👉 https://github.com/andycywu/security-scanner\\n\\n#AI #資訊安全 #開發\"\n  },\n  {\n    content: \"🚀 告別手動檢查程式碼！\\n\\nSecurity Scanner 自動掃描：\\n• API Key 洩漏\\n• 危險程式碼模式\\n• 權限風險\\n\\n只要 $49，保護你的 AI Apps！\\n\\n#自動化 #資安 #AI\"\n  }\n];\n\nconst today = new Date();\nconst dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / 1000 / 60 / 60 / 24);\nconst selectedPost = posts[dayOfYear % posts.length];\n\nreturn [{\n  json: selectedPost\n}];\n"
+      },
+      "id": "node_content_generator",
+      "name": "Content Generator",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [100, 350]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [{"node": "Twitter/X", "type": "main", "index": 0}],
+        [{"node": "Content Generator", "type": "main", "index": 0}]
+      ]
+    },
+    "Content Generator": {
+      "main": [
+        [{"node": "Twitter/X", "type": "main", "index": 0}],
+        [{"node": "Facebook", "type": "main", "index": 0}]
+      ]
+    },
+    "Twitter/X": {
+      "main": [
+        [{"node": "Telegram Notification", "type": "main", "index": 0}]
+      ]
+    },
+    "Facebook": {
+      "main": [
+        [{"node": "Telegram Notification", "type": "main", "index": 0}]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
