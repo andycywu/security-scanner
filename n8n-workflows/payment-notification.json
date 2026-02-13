@@ -1,0 +1,70 @@
+{
+  "name": "Security Scanner - Payment Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyHour"
+            }
+          ]
+        }
+      },
+      "name": "Wise Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "1408472778",
+        "text": "={{ '💰 新的收款通知！\n\n💵 金額: ' + $json.amount + ' ' + $json.currency + '\n📝 描述: ' + $json.reference + '\n⏰ 時間: ' + $json.created_at + '\n\n🔗 查看詳情: https://wise.com' }}"
+      },
+      "name": "Telegram Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        350,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "SPREADSHEET_ID",
+        "table": "A:E",
+        "columns": "=A:B:C:D:E",
+        "options": {}
+      },
+      "name": "Update Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [
+        350,
+        350
+      ]
+    }
+  ],
+  "connections": {
+    "Wise Webhook": {
+      "main": [
+        [
+          {
+            "node": "Telegram Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

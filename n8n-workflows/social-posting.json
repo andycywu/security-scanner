@@ -1,0 +1,87 @@
+{
+  "name": "Security Scanner - Social Media Auto Post",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": {
+            "hours": 24
+          }
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "text": "={{ '🔒 AI Skill Security Scanner v1.0 正式上線！\n\n✅ 掃描 API Key 洩漏\n✅ 偵測惡意程式碼\n✅ 權限風險評估\n\n💰 個人版只要 $49\n📞 聯繫: @singularity_capital_bot\n\n#AI #資安 #自動化' }}"
+      },
+      "name": "Twitter Post",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "text": "={{ '🔒 AI Skill Security Scanner 正式上線！\n\n✅ 掃描 API Key 洩漏\n✅ 偵測惡意程式碼\n✅ 權限風險評估\n\n💰 個人版 $49 | 企業版 $499/年\n📞 聯繫: @singularity_capital_bot\n\n#AI #資安 #程式開發' }}"
+      },
+      "name": "Facebook Post",
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1,
+      "position": [
+        300,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "1408472778",
+        "text": "={{ '🎉 自動化推文已發布！\n\n🔒 Security Scanner v1.0\n\nTwitter: ✅\nFacebook: ✅\n\n📊 追蹤: https://github.com/andycywu/security-scanner' }}"
+      },
+      "name": "Telegram Notify",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Twitter Post",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Facebook Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Twitter Post": {
+      "main": [
+        [
+          {
+            "node": "Telegram Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
