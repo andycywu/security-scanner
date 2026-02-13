@@ -1,0 +1,251 @@
+{
+  "meta": {
+    "instanceId": "secscan_004",
+    "created": "2026-02-13T08:42:00Z",
+    "version": "1.0"
+  },
+  "name": "Notion Blog → Social Media Sync",
+  "description": "Notion 新文章自動同步到 Twitter、Facebook、Threads",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": {
+            "hours": 1
+          }
+        }
+      },
+      "id": "node_schedule",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [100, 300]
+    },
+    {
+      "parameters": {
+        "databaseId": "DATABASE_ID",
+        "returnAll": false,
+        "options": {
+          "filter": {
+            "and": [
+              {
+                "property": "Status",
+                "select": {
+                  "equals": "Draft"
+                }
+              },
+              {
+                "property": "Publish to Social",
+                "checkbox": {
+                  "equals": true
+                }
+              }
+            ]
+          },
+          "sort": [
+            {
+              "property": "Created",
+              "direction": "descending"
+            }
+          ]
+        }
+      },
+      "id": "node_notion",
+      "name": "Notion Database",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 1,
+      "position": [300, 300],
+      "credentials": {
+        "notionApi": {
+          "id": "CREDENTIAL_ID_NOTION",
+          "name": "Notion API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "// 解析 Notion 內容\nconst page = $json;\nconst properties = page.properties || {};\n\n// 取得標題\nlet title = '新文章';\nif (properties.Name && properties.Name.title) {\n  title = properties.Name.title[0]?.plain_text || '新文章';\n}\n\n// 取得摘要\nlet summary = '';\nif (properties.Summary && properties.Summary.rich_text) {\n  summary = properties.Summary.rich_text[0]?.plain_text || '';\n}\n\n// 取得標籤\nlet tags = [];\nif (properties.Tags && properties.Tags.multi_select) {\n  tags = properties.Tags.multi_select.map(t => t.name);\n}\n\n// 取得 Slug\nlet slug = title.toLowerCase().replace(/\\s+/g, '-');\nif (properties.Slug && properties.Slug.rich_text) {\n  slug = properties.Slug.rich_text[0]?.plain_text || slug;\n}\n\n// 取得內文（前500字）\nlet content = '';\nif (page.content) {\n  // 內文在 page.blocks 中\n  content = page.content.slice(0, 5).map(b => {\n    if (b.paragraph && b.paragraph.rich_text) {\n      return b.paragraph.rich_text.map(t => t.plain_text).join('');\n    }\n    return '';\n  }).filter(Boolean).join('\\n').substring(0, 300);\n}\n\n// 生成標籤\nconst tagString = tags.map(t => '#' + t.replace(/\\s+/g, '')).join(' ');\n\nreturn [{\n  json: {\n    id: page.id,\n    title,\n    slug,\n    summary,\n    content,\n    tags,\n    tagString,\n    url: 'https://' + (properties.Domain?.rich_text?.[0]?.plain_text || 'yourblog.notion.site') + '/' + slug,\n    created_at: page.created_time\n  }\n}];\n"
+      },
+      "id": "node_parser",
+      "name": "Parse Notion Content",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// 生成 Twitter 內容\nconst data = $input.first().json;\nconst maxLength = 280;\n\nlet tweet = `📝 ${data.title}\\n\\n`;\n\nif (data.summary) {\n  tweet += `${data.summary}\\n\\n`;\n}\n\ntweet += `🔗 Read more → ${data.url}\\n\\n`;\n\nif (data.tagString) {\n  tweet += data.tagString;\n}\n\n// 截斷過長的內容\nif (tweet.length > maxLength) {\n  tweet = tweet.substring(0, maxLength - 3) + '...';\n}\n\nreturn [{\n  json: { text: tweet, url: data.url }\n}];\n"
+      },
+      "id": "node_twitter_format",
+      "name": "Format Twitter",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [700, 150]
+    },
+    {
+      "parameters": {
+        "functionCode": "// 生成 Facebook/Threads 內容\nconst data = $input.first().json;\n\nlet post = `📝 ${data.title}\\n\\n`;\n\nif (data.summary) {\n  post += `${data.summary}\\n\\n`;\n}\n\nif (data.content) {\n  post += `${data.content}...\\n\\n`;\n}\n\npost += `🔗 Read more → ${data.url}\\n\\n`;\n\nif (data.tagString) {\n  post += data.tagString;\n}\n\nreturn [{\n  json: { text: post, url: data.url }\n}];\n"
+      },
+      "id": "node_social_format",
+      "name": "Format Facebook/Threads",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.text }}",
+        "additionalFields": {}
+      },
+      "id": "node_twitter",
+      "name": "Twitter/X",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 1.4,
+      "position": [900, 150],
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "CREDENTIAL_ID_TWITTER",
+          "name": "Twitter OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.text }}",
+        "pageId": {
+          "__rl": true,
+          "value": "PAGE_ID",
+          "mode": "list"
+        }
+      },
+      "id": "node_facebook",
+      "name": "Facebook",
+      "type": "n8n-nodes-base.facebookGraphApi",
+      "typeVersion": 1.2,
+      "position": [900, 300],
+      "credentials": {
+        "facebookGraphApi": {
+          "id": "CREDENTIAL_ID_FACEBOOK",
+          "name": "Facebook Graph API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://graph.threads.net/v1.0/me/threads",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"media_type\": \"TEXT\", \"text\": $json.text } }}",
+        "options": {}
+      },
+      "id": "node_threads",
+      "name": "Threads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 450],
+      "credentials": {
+        "oAuth2Api": {
+          "id": "CREDENTIAL_ID_THREADS",
+          "name": "Threads API OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pageId": "DATABASE_ID",
+        "page": "= {{ $json.id }}",
+        "properties": "={{ {\n  \"Status\": {\n    \"select\": {\n      \"name\": \"Published\"\n    }\n  },\n  \"Published At\": {\n    \"date\": {\n      \"start\": \"${new Date().toISOString()}\"\n    }\n  }\n} }}",
+        "options": {}
+      },
+      "id": "node_notion_update",
+      "name": "Update Notion Page",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 1,
+      "position": [1100, 300],
+      "credentials": {
+        "notionApi": {
+          "id": "CREDENTIAL_ID_NOTION",
+          "name": "Notion API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "1408472778",
+        "text": "={{ '📢 新文章已發布！\\n\\n📝 ' + $('Parse Notion Content').first().json.title + '\\n\\n🐦 Twitter: ✅\\n📘 Facebook: ✅\\n🧵 Threads: ✅\\n\\n🔗 ' + $('Parse Notion Content').first().json.url }}",
+        "additionalFields": {}
+      },
+      "id": "node_telegram",
+      "name": "Telegram Notification",
+      "type": "n8n-n8n-nodes-base.telegram",
+      "typeVersion": 1.6,
+      "position": [1100, 500],
+      "credentials": {
+        "telegramApi": {
+          "id": "CREDENTIAL_ID_TELEGRAM",
+          "name": "Telegram Bot API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [{"node": "Notion Database", "type": "main", "index": 0}]
+      ]
+    },
+    "Notion Database": {
+      "main": [
+        [{"node": "Parse Notion Content", "type": "main", "index": 0}]
+      ]
+    },
+    "Parse Notion Content": {
+      "main": [
+        [{"node": "Format Twitter", "type": "main", "index": 0}],
+        [{"node": "Format Facebook/Threads", "type": "main", "index": 0}]
+      ]
+    },
+    "Format Twitter": {
+      "main": [
+        [{"node": "Twitter/X", "type": "main", "index": 0}]
+      ]
+    },
+    "Format Facebook/Threads": {
+      "main": [
+        [{"node": "Facebook", "type": "main", "index": 0}],
+        [{"node": "Threads", "type": "main", "index": 0}]
+      ]
+    },
+    "Twitter/X": {
+      "main": [
+        [{"node": "Update Notion Page", "type": "main", "index": 0}]
+      ]
+    },
+    "Facebook": {
+      "main": [
+        [{"node": "Update Notion Page", "type": "main", "index": 0}]
+      ]
+    },
+    "Threads": {
+      "main": [
+        [{"node": "Update Notion Page", "type": "main", "index": 0}]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
